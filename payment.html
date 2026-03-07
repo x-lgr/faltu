@@ -49,6 +49,10 @@
         <img src="https://upload.wikimedia.org/wikipedia/commons/2/24/Paytm_Logo_%28standalone%29.svg" alt="Paytm">
         <span class="label">Paytm</span>
       </div>
+      <div class="option" data-method="upi" onclick="handleOptionClick(this)">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/UPI-Logo-vector.svg" alt="UPI">
+        <span class="label">UPI App</span>
+      </div>
       <div class="option" data-method="scan" onclick="selectMethod(this)">
         <img src="scan.png" alt="Scan to Pay" onerror="this.style.display='none'">
         <span class="label">SCAN TO PAY</span>
@@ -92,14 +96,14 @@
       const pn = encodeURIComponent(upiPayload.name || 'Store');
       const tn = encodeURIComponent(upiPayload.note || 'Order Payment');
       const commonParams = `pa=${pa}&pn=${pn}&am=${amount}&cu=INR&tn=${tn}`;
-      return method === 'phonepe'
-        ? `phonepe://pay?${commonParams}`
-        : `paytmmp://pay?${commonParams}`;
+      if (method === 'phonepe') return `phonepe://pay?${commonParams}`;
+      if (method === 'paytm') return `paytmmp://pay?${commonParams}`;
+      return `upi://pay?${commonParams}`;
     }
 
     function handleOptionClick(el) {
       selectMethod(el);
-      if (selectedMethod === 'phonepe' || selectedMethod === 'paytm') {
+      if (selectedMethod === 'phonepe' || selectedMethod === 'paytm' || selectedMethod === 'upi') {
         const deepLink = buildDeepLink(selectedMethod);
         if (!deepLink) {
           alert('UPI ID not found. Please set it in admin panel or use SCAN TO PAY.');
