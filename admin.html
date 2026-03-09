@@ -51,14 +51,15 @@
 
   <div id="pinScreen" class="card pin-screen">
     <h2>Admin Access</h2>
-    <p class="small" style="margin-bottom:12px">Enter PIN to continue</p>
-    <input type="password" id="pinInput" placeholder="PIN" maxlength="6" inputmode="numeric">
+    <p class="small" style="margin-bottom:12px">Sign in with KeyAuth username/password</p>
+    <input type="text" id="adminUsername" placeholder="Username" style="font-size:14px;letter-spacing:0;text-align:left;">
+    <input type="password" id="adminPassword" placeholder="Password" style="font-size:14px;letter-spacing:0;text-align:left;">
     <div class="actions" style="justify-content:center;margin-top:10px">
-      <button class="btn-primary" onclick="checkPin()">Enter</button>
+      <button class="btn-primary" onclick="loginAdmin()">Login</button>
       <a href="home.html"><button class="btn-ghost" type="button">Home</button></a>
     </div>
-    <p id="pinError" class="small" style="color:#dc3545;display:none;margin-top:8px;">Wrong PIN</p>
-    <p class="small" style="margin-top:8px;">First time? Enter any 4‑6 digit PIN to set it.</p>
+    <p id="pinError" class="small" style="color:#dc3545;display:none;margin-top:8px;">Invalid KeyAuth credentials</p>
+    <p class="small" style="margin-top:8px;">KeyAuth credentials use karke login karein.</p>
   </div>
 
   <div id="adminPanel" class="hidden">
@@ -77,6 +78,11 @@
         </div>
       </div>
       <button class="btn-primary" onclick="saveUpi()">Save UPI</button>
+    </div>
+
+    <div class="card">
+      <h2>KeyAuth Password</h2>
+      <p class="small">Password change KeyAuth dashboard/user panel se hota hai.</p>
     </div>
 
     <!-- Banners -->
@@ -243,9 +249,20 @@
   </div>
 
   <script src="js/app.js"></script>
+  <script src="js/keyauth.js"></script>
   <script>
+    const KeyAuthApp = (typeof KeyAuth !== 'undefined')
+      ? new KeyAuth({
+          name: "xlgr",
+          ownerid: "okY6unb69f",
+          version: "1.0"
+        })
+      : null;
+
     let pendingReviews = [];
     let currentStar = 5;
+    let adminLoaded = false;
+    let keyAuthInitialized = false;
 
     function setStar(v) {
       currentStar = v;
@@ -332,24 +349,57 @@
       }
     }
 
-    // PIN
-    function getStoredPin() { return localStorage.getItem('fk_admin_pin'); }
-    function setPin(pin) { localStorage.setItem('fk_admin_pin', pin); }
-    function checkPin() {
-      const input = document.getElementById('pinInput').value.trim();
-      const stored = getStoredPin();
-      if (!input || input.length < 4) { alert('Enter 4‑6 digit PIN'); return; }
-      if (!stored) { setPin(input); openAdmin(); }
-      else if (stored === input) { openAdmin(); }
-      else { document.getElementById('pinError').style.display = 'block'; }
+    // Auth
+    async function loginAdmin() {
+      const username = document.getElementById('adminUsername').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      const err = document.getElementById('pinError');
+      err.style.display = 'none';
+
+      if (!username || !password) {
+        err.textContent = 'Enter username and password';
+        err.style.display = 'block';
+        return;
+      }
+      try {
+        if (!KeyAuthApp) throw new Error('KeyAuth SDK not loaded');
+        if (!keyAuthInitialized) {
+          await KeyAuthApp.init();
+          keyAuthInitialized = true;
+        }
+        await KeyAuthApp.login(username, password);
+        openAdmin();
+      } catch (e) {
+        const msg = (e && e.message) ? e.message : 'Login failed';
+        if (/Failed to fetch|NetworkError|CORS/i.test(msg)) {
+          err.textContent = 'Network/CORS error. Open site via localhost server, not file://';
+        } else {
+          err.textContent = msg;
+        }
+        err.style.display = 'block';
+        console.error('KeyAuth login error:', e);
+      }
     }
+
+    async function changeAdminPassword() {
+      alert('KeyAuth password change dashboard/user panel se karein.');
+    }
+
     function openAdmin() {
       document.getElementById('pinScreen').classList.add('hidden');
       document.getElementById('adminPanel').classList.remove('hidden');
-      loadAdmin();
+      if (!adminLoaded) {
+        adminLoaded = true;
+        loadAdmin();
+      }
     }
-    function logout() { localStorage.removeItem('fk_admin_pin'); location.reload(); }
-    document.getElementById('pinInput').addEventListener('keypress', e => { if (e.key === 'Enter') checkPin(); });
+
+    async function logout() {
+      location.reload();
+    }
+
+    document.getElementById('adminPassword').addEventListener('keypress', e => { if (e.key === 'Enter') loginAdmin(); });
+    document.getElementById('adminUsername').addEventListener('keypress', e => { if (e.key === 'Enter') loginAdmin(); });
 
     // Load
     async function loadAdmin() {
@@ -569,3 +619,7 @@
   </script>
 </body>
 </html>
+
+
+
+
