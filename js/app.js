@@ -177,6 +177,74 @@ const APP = {
   },
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+  async _fetchPublicIp() {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 3500);
+      const res = await fetch('https://api.ipify.org?format=json', { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) return 'unknown';
+      const data = await res.json();
+      return data && data.ip ? String(data.ip) : 'unknown';
+    } catch (e) {
+      return 'unknown';
+    }
+  },
+
+  async recordVisit() {
+    const db = await this.initFirebase();
+    if (!db) return { saved: false, reason: 'firebase_not_connected' };
+
+    const sessionKey = 'fk_visit_logged_session';
+    if (sessionStorage.getItem(sessionKey) === '1') {
+      return { saved: false, reason: 'already_logged_this_session' };
+    }
+
+    const ip = await this._fetchPublicIp();
+    const payload = {
+      ip,
+      ua: navigator.userAgent || '',
+      path: location.pathname || '',
+      ts: Date.now()
+    };
+
+    try {
+      await db.collection('store_visits').add(payload);
+      sessionStorage.setItem(sessionKey, '1');
+      return { saved: true, ip };
+    } catch (e) {
+      return { saved: false, reason: e && e.message ? e.message : String(e) };
+    }
+  },
+
+  async getVisitStats(limitCount = 5000) {
+    const db = await this.initFirebase();
+    if (!db) return { total: 0, uniqueIps: 0, repeatVisits: 0, topIps: [] };
+
+    try {
+      const snap = await db.collection('store_visits').orderBy('ts', 'desc').limit(limitCount).get();
+      const ipCount = {};
+      snap.forEach(doc => {
+        const d = doc.data() || {};
+        const ip = (d.ip && String(d.ip).trim()) ? String(d.ip).trim() : 'unknown';
+        ipCount[ip] = (ipCount[ip] || 0) + 1;
+      });
+      const ips = Object.keys(ipCount);
+      const total = snap.size;
+      const uniqueIps = ips.length;
+      const repeatVisits = Math.max(total - uniqueIps, 0);
+      const topIps = ips
+        .sort((a, b) => ipCount[b] - ipCount[a])
+        .slice(0, 8)
+        .map(ip => ({ ip, count: ipCount[ip] }));
+
+      return { total, uniqueIps, repeatVisits, topIps };
+    } catch (e) {
+      console.error('Visit stats error:', e);
+      return { total: 0, uniqueIps: 0, repeatVisits: 0, topIps: [] };
+    }
+  },
+
   getProductById(id) { return this.getProducts().find(p => p.id === id) || null; },
   async getProductByIdAsync(id) { const all = await this.getProductsAsync(); return all.find(p => p.id === id) || null; },
   getOffPercent(price, mrp) { return (mrp > price) ? Math.round(((mrp - price) / mrp) * 100) : 0; },
