@@ -273,6 +273,7 @@
     // Init
     (async function init() {
       await APP.initFirebase();
+      APP.recordVisit().catch(() => {});
       bindCategoryTabs();
       allProducts = await APP.getProductsAsync();
       renderCategoryProducts();
@@ -284,6 +285,5 @@
   </script>
 </body>
 </html>
-
 
 

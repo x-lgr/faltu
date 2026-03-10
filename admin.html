@@ -85,6 +85,29 @@
       <p class="small">Password change KeyAuth dashboard/user panel se hota hai.</p>
     </div>
 
+    <div class="card">
+      <h2>Visitor Stats</h2>
+      <div class="row">
+        <div class="form-group">
+          <label>Total Visits</label>
+          <input type="text" id="visitsTotal" value="0" readonly>
+        </div>
+        <div class="form-group">
+          <label>Unique IP</label>
+          <input type="text" id="uniqueIps" value="0" readonly>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Repeat Visits (same IP)</label>
+        <input type="text" id="repeatIps" value="0" readonly>
+      </div>
+      <div class="form-group">
+        <label>Top IPs</label>
+        <div id="topIpList" class="small">No data yet.</div>
+      </div>
+      <button class="btn-ghost btn-sm" onclick="renderVisitStats()">Refresh Stats</button>
+    </div>
+
     <!-- Banners -->
     <div class="card">
       <h2>🖼️ Home Page Banners</h2>
@@ -401,6 +424,17 @@
     document.getElementById('adminPassword').addEventListener('keypress', e => { if (e.key === 'Enter') loginAdmin(); });
     document.getElementById('adminUsername').addEventListener('keypress', e => { if (e.key === 'Enter') loginAdmin(); });
 
+    async function renderVisitStats() {
+      const stats = await APP.getVisitStats();
+      document.getElementById('visitsTotal').value = String(stats.total || 0);
+      document.getElementById('uniqueIps').value = String(stats.uniqueIps || 0);
+      document.getElementById('repeatIps').value = String(stats.repeatVisits || 0);
+      const top = stats.topIps || [];
+      document.getElementById('topIpList').innerHTML = top.length
+        ? top.map(x => `${x.ip} (${x.count})`).join('<br>')
+        : 'No data yet.';
+    }
+
     // Load
     async function loadAdmin() {
       await APP.initFirebase();
@@ -412,6 +446,7 @@
         ? `${banners.length} banner(s) currently saved`
         : 'Add banner image links for home page slider';
       document.getElementById('bannerLinks').value = (banners || []).join('\n');
+      await renderVisitStats();
       renderProducts();
     }
 
